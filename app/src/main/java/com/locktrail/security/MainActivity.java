@@ -1,177 +1,19 @@
 package com.locktrail.security;
-
-import android.Manifest;
-import android.app.Activity;
-import android.content.pm.PackageManager;
-import android.location.Location;
-import android.location.LocationManager;
-import android.media.AudioManager;
-import android.media.ToneGenerator;
-import android.os.Bundle;
-import android.os.Looper;
-import android.content.Context;
-import android.graphics.Color;
-import android.graphics.Typeface;
-import android.view.Gravity;
-import android.view.View;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
-import android.widget.Toast;
-import android.location.LocationListener;
-
-import java.text.DateFormat;
-import java.util.Date;
-
-public class MainActivity extends Activity {
-    private static final int LOCATION_REQUEST = 42;
-    private LinearLayout root;
-    private TextView locationValue;
-    private TextView statusValue;
-    private ToneGenerator toneGenerator;
-
-    @Override public void onCreate(Bundle state) {
-        super.onCreate(state);
-        toneGenerator = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
-        buildUi();
-    }
-
-    private void buildUi() {
-        ScrollView scroll = new ScrollView(this);
-        root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(22), dp(28), dp(22), dp(28));
-        root.setBackgroundColor(Color.rgb(244, 248, 247));
-        scroll.addView(root);
-
-        TextView brand = new TextView(this);
-        brand.setText("LOCKTRAIL");
-        brand.setTextColor(Color.rgb(13, 118, 110));
-        brand.setTextSize(13);
-        brand.setTypeface(null, Typeface.BOLD);
-        root.addView(brand);
-
-        TextView title = new TextView(this);
-        title.setText("Mobile Security");
-        title.setTextColor(Color.rgb(7, 53, 49));
-        title.setTextSize(30);
-        title.setTypeface(null, Typeface.BOLD);
-        addSpace(8);
-        root.addView(title);
-
-        TextView subtitle = new TextView(this);
-        subtitle.setText("Anti-theft prototype · Local device demo");
-        subtitle.setTextColor(Color.rgb(83, 104, 101));
-        subtitle.setTextSize(14);
-        root.addView(subtitle);
-
-        addSpace(22);
-        statusValue = addCard("DEVICE STATUS", "Protection setup incomplete", "This prototype does not yet connect to a remote account or dashboard.");
-        locationValue = addCard("LAST KNOWN LOCATION", "Not collected yet", "Tap the button below and allow location access.");
-
-        Button locationButton = button("Get last known location");
-        locationButton.setOnClickListener(v -> requestLocation());
-        
-
-        Button alarmButton = button("Test local alarm tone");
-        alarmButton.setOnClickListener(v -> {
-            try {
-                toneGenerator.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 2500);
-                Toast.makeText(this, "Local alarm tone played", Toast.LENGTH_SHORT).show();
-            } catch (Exception e) {
-                Toast.makeText(this, "Could not play alarm tone on this device", Toast.LENGTH_LONG).show();
-            }
-        });
-        
-
-        addSpace(16);
-        TextView limitation = new TextView(this);
-        limitation.setText("IMPORTANT LIMITS\n\n• This demo cannot prevent the phone from powering off.\n• It cannot block Factory Reset or Recovery Mode.\n• Location is read locally; it is not uploaded or live-tracked remotely.\n• Remote lock, remote erase, login/2FA, and Device Owner enrollment are not implemented yet.\n\nA production build needs a secure backend and, for stronger policies, supported Android Enterprise / Device Owner enrollment.");
-        limitation.setTextColor(Color.rgb(55, 72, 69));
-        limitation.setTextSize(14);
-        limitation.setPadding(dp(16), dp(16), dp(16), dp(16));
-        limitation.setBackgroundColor(Color.rgb(231, 241, 239));
-        root.addView(limitation);
-        setContentView(scroll);
-    }
-
-    private TextView addCard(String heading, String value, String detail) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(16), dp(16), dp(16), dp(16));
-        card.setBackgroundColor(Color.WHITE);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.bottomMargin = dp(12);
-        root.addView(card, lp);
-        TextView h = new TextView(this); h.setText(heading); h.setTextSize(11); h.setTypeface(null, Typeface.BOLD); h.setTextColor(Color.rgb(13,118,110)); card.addView(h);
-        TextView v = new TextView(this); v.setText(value); v.setTextSize(18); v.setTypeface(null, Typeface.BOLD); v.setTextColor(Color.rgb(7,53,49)); v.setPadding(0, dp(8), 0, dp(4)); card.addView(v);
-        TextView d = new TextView(this); d.setText(detail); d.setTextSize(13); d.setTextColor(Color.rgb(83,104,101)); card.addView(d);
-        return v;
-    }
-
-    private Button button(String text) {
-        Button b = new Button(this);
-        b.setText(text);
-        b.setAllCaps(false);
-        b.setTextColor(Color.WHITE);
-        b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(13,118,110)));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.bottomMargin = dp(10);
-        root.addView(b, lp);
-        return b;
-    }
-
-    private void requestLocation() {
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-            checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, LOCATION_REQUEST);
-            return;
-        }
-        showLastLocation();
-    }
-
-    private void showLastLocation() {
-        try {
-            LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            Location best = null;
-            for (String provider : lm.getProviders(true)) {
-                Location candidate = lm.getLastKnownLocation(provider);
-                if (candidate != null && (best == null || candidate.getTime() > best.getTime())) best = candidate;
-            }
-            if (best == null) {
-                locationValue.setText("No cached location available");
-                Toast.makeText(this, "No last-known location. Enable location and try again.", Toast.LENGTH_LONG).show();
-                return;
-            }
-            String time = DateFormat.getDateTimeInstance().format(new Date(best.getTime()));
-            locationValue.setText(String.format(java.util.Locale.US, "%.6f, %.6f\nAccuracy: %.0f m\nRecorded: %s", best.getLatitude(), best.getLongitude(), best.getAccuracy(), time));
-            Toast.makeText(this, "Last known location read on this device only", Toast.LENGTH_LONG).show();
-        } catch (SecurityException e) {
-            Toast.makeText(this, "Location permission is required", Toast.LENGTH_LONG).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "Unable to read location on this device", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
-        super.onRequestPermissionsResult(requestCode, permissions, results);
-        if (requestCode == LOCATION_REQUEST) {
-            boolean granted = false;
-            for (int result : results) if (result == PackageManager.PERMISSION_GRANTED) granted = true;
-            if (granted) showLastLocation();
-            else Toast.makeText(this, "Location permission was not granted", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void addSpace(int dp) {
-        View v = new View(this);
-        root.addView(v, new LinearLayout.LayoutParams(1, dp(dp)));
-    }
-    private int dp(int value) { return (int) (value * getResources().getDisplayMetrics().density + 0.5f); }
-
-    @Override protected void onDestroy() {
-        if (toneGenerator != null) toneGenerator.release();
-        super.onDestroy();
-    }
+import android.Manifest;import android.app.*;import android.content.*;import android.content.pm.PackageManager;import android.location.*;import android.os.*;import android.text.InputType;import android.graphics.Color;import android.graphics.Typeface;import android.graphics.drawable.GradientDrawable;import android.view.ViewGroup;import android.widget.*;
+public class MainActivity extends Activity{
+ int bg=0xff081212,panel=0xff112322,green=0xff23be8b;SharedPreferences p;LinearLayout root;LocationManager lm;boolean tracking;
+ int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);} GradientDrawable shape(int c){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(14));return d;}
+ LinearLayout.LayoutParams lp(){return new LinearLayout.LayoutParams(-1,-2);} TextView txt(String s,int z,int c,boolean b){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);if(b)t.setTypeface(null,Typeface.BOLD);return t;}
+ void gap(LinearLayout v,android.view.View child,int top){LinearLayout.LayoutParams a=lp();a.topMargin=dp(top);v.addView(child,a);}
+ public void onCreate(Bundle b){super.onCreate(b);p=getSharedPreferences("locktrail",0);lm=(LocationManager)getSystemService(LOCATION_SERVICE);tracking=p.getBoolean("tracking",false);if(p.getBoolean("signed",false))dashboard();else login();}
+ void base(String title,String desc){ScrollView sc=new ScrollView(this);root=new LinearLayout(this);root.setOrientation(1);root.setPadding(dp(22),dp(28),dp(22),dp(28));root.setBackgroundColor(bg);sc.addView(root);setContentView(sc);root.addView(txt("LOCKTRAIL  /  PHONE SECURITY",13,green,true),lp());gap(root,txt(title,29,-1,true),22);gap(root,txt(desc,15,0xffb0c4bf,false),8);}
+ EditText input(String hint,boolean secret){EditText e=new EditText(this);e.setSingleLine(true);e.setHint(hint);e.setTextColor(-1);e.setHintTextColor(0xff91a59f);e.setPadding(dp(14),dp(12),dp(14),dp(12));e.setBackground(shape(panel));if(secret)e.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);return e;}
+ void btn(String label,boolean primary,Runnable r){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextSize(15);b.setTypeface(null,Typeface.BOLD);b.setTextColor(primary?bg:-1);b.setBackground(shape(primary?green:panel));gap(root,b,12);b.setOnClickListener(v->r.run());}
+ void login(){base("Your phone. Your control.","Sign in to configure LockTrail. This prototype stores sign-in locally on this device.");EditText a=input("Email or phone number",false),pw=input("Password (6+ characters)",true);gap(root,a,20);gap(root,pw,12);btn("Continue",true,()->{String ac=a.getText().toString().trim(),pass=pw.getText().toString();if(ac.isEmpty()||pass.length()<6){toast("Enter email/phone and a password of at least 6 characters.");return;}p.edit().putBoolean("signed",true).putString("account",ac).putString("pw",Integer.toString(pass.hashCode())).apply();dashboard();});gap(root,txt("Prototype: no cloud account is created yet.",13,0xffffcb80,false),20);}
+ void card(String title,String detail){LinearLayout c=new LinearLayout(this);c.setOrientation(1);c.setPadding(dp(16),dp(16),dp(16),dp(16));c.setBackground(shape(panel));c.addView(txt(title,19,-1,true),lp());gap(c,txt(detail,14,0xffb0c4bf,false),8);gap(root,c,16);}
+ void dashboard(){tracking=p.getBoolean("tracking",false);base("Phone security","Manage your two core LockTrail controls.");gap(root,txt("ACCOUNT  ·  "+p.getString("account","Local account"),12,green,true),16);card("01  Secure Your Phone","Set a separate security PIN for LockTrail settings. A normal Android app cannot universally block power-off or factory reset.");btn(p.getBoolean("pin",false)?"Update security PIN":"Set security PIN",true,()->setPin());card("02  Track Location",tracking?"Location toggle is ON on this device. Device location and permission are required.":"Enable location permission to check this phone's available location.");btn(tracking?"Turn location tracking off":"Turn location tracking on",!tracking,()->{if(tracking){p.edit().putBoolean("tracking",false).apply();dashboard();}else if(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED&&checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)!=PackageManager.PERMISSION_GRANTED){requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION},42);}else{p.edit().putBoolean("tracking",true).apply();dashboard();lastLocation();}});btn("Check available location",false,this::lastLocation);gap(root,txt("IMPORTANT: remote live tracking from another phone/PC is not connected. A secure backend and web dashboard are required. This build does not upload location.",13,0xffffcb80,false),20);btn("Sign out",false,()->{p.edit().putBoolean("signed",false).apply();login();});}
+ void setPin(){EditText e=input("New PIN / passphrase (6+ characters)",true);new AlertDialog.Builder(this).setTitle("Secure LockTrail").setMessage("This PIN protects app settings only; it cannot block Android shutdown or factory reset.").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Save PIN",(d,w)->{String s=e.getText().toString();if(s.length()<6)toast("Use at least 6 characters.");else{p.edit().putString("pin_hash",Integer.toString(s.hashCode())).putBoolean("pin",true).apply();toast("PIN saved on this device.");dashboard();}}).show();}
+ void lastLocation(){if(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED&&checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)!=PackageManager.PERMISSION_GRANTED){toast("Allow location permission first.");return;}try{Location best=null;for(String pr:lm.getProviders(true)){Location l=lm.getLastKnownLocation(pr);if(l!=null&&(best==null||l.getTime()>best.getTime()))best=l;}if(best==null)new AlertDialog.Builder(this).setTitle("Location unavailable").setMessage("No cached location yet. Turn on device location and try again.").setPositiveButton("OK",null).show();else new AlertDialog.Builder(this).setTitle("Available location").setMessage("Latitude: "+best.getLatitude()+"\nLongitude: "+best.getLongitude()+"\nAccuracy: "+Math.round(best.getAccuracy())+" m\nCached location; may not be current.").setPositiveButton("OK",null).show();}catch(Exception ex){toast("Location unavailable. Check permission and device location.");}}
+ public void onRequestPermissionsResult(int q,String[] perms,int[] res){super.onRequestPermissionsResult(q,perms,res);if(q==42){boolean ok=false;for(int x:res)if(x==PackageManager.PERMISSION_GRANTED)ok=true;if(ok){p.edit().putBoolean("tracking",true).apply();dashboard();lastLocation();}else toast("Location permission not granted.");}}
+ void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
 }
