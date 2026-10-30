@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
 
         Button locationButton = button("Get last known location");
         locationButton.setOnClickListener(v -> requestLocation());
-        root.addView(locationButton);
+        
 
         Button alarmButton = button("Test local alarm tone");
         alarmButton.setOnClickListener(v -> {
@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "Could not play alarm tone on this device", Toast.LENGTH_LONG).show();
             }
         });
-        root.addView(alarmButton);
+        
 
         addSpace(16);
         TextView limitation = new TextView(this);
